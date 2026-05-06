@@ -124,23 +124,24 @@ public:
 int main() {
     StorageManager sm("motor_db.bin");
 
-    Page p_test;
-    p_test.page_id = 1; 
-    strcpy(p_test.data, "Datos persistentes con fsync parte 2 ");
-    Page p_test2;
-    p_test2.page_id = 50; 
-    strcpy(p_test2.data, "Datos para la página 50");
+    Page page1(1);
+    int slot_prueba1 = page1.insertar_registro("kerin|larico|22");
+    int slot_prueba2 = page1.insertar_registro("santiesteban|gomez|30");
+    int slot_prueba3 = page1.insertar_registro("maria|lopez|25");
 
-    /*if (sm.writePage(p_test.page_id, p_test)) {
-        cout << "Página " << p_test.page_id << " escrita y asegurada en disco con fsync." << endl;
+    if ( sm.writePage(page1.header.page_id, page1)) {
+        cout << "Página escrita exitosamente." << endl;
+    } else {
+        cout << "Error al escribir la página." << endl;
     }
-    sm.readPage(p_test.page_id, p_test);
-    cout << "Página leída: " << p_test.data << endl;
-    */
-    if (sm.writePage(p_test2.page_id, p_test2)) {
-        cout << "Página " << p_test2.page_id << " escrita y asegurada en disco con fsync. parte 50" << endl;
+
+     Page page_lectura;
+
+     if(sm.readPage(1, page_lectura)){
+        cout << " prueba 1 "<< slot_prueba1 <<" : " << page_lectura.get_registro(slot_prueba1) <<endl;
+        cout << " prueba 2 "<< slot_prueba2 <<" : " << page_lectura.get_registro(slot_prueba2) <<endl;
+        cout << " prueba 3 "<< slot_prueba3 <<" : " << page_lectura.get_registro(slot_prueba3) <<endl;
     }
-    sm.readPage(p_test2.page_id, p_test2);
-    cout << "Página leída: " << p_test2.data << endl;
     return 0;
+
 }
