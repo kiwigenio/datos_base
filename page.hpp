@@ -17,8 +17,8 @@ struct SlotEntry{
 struct PageHeader{ 
     int16_t page_id; 
     uint16_t num_slots;
-    uint16_t espacio_libre_abajo; 
-    uint16_t espacio_libre_arriba;
+    uint16_t espacio_libre_hacia_abajo; 
+    uint16_t espacio_libre_hacia_arriba;
 
 };
 
@@ -28,7 +28,7 @@ struct Page {
     char data[PAGE_SIZE - sizeof(PageHeader)];
 
     // Constructor
-    Page(int32_t id = -1);
+    Page(int32_t id);
 
     // Declaración de métodos
     int insertar_registro(const std::string& registro);
