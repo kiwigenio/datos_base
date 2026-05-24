@@ -42,8 +42,31 @@ private:
 };
 
 int main(){
+    StorageManager sm;
+    
+    string mensaje = "Registro base de datos";
+    vector<uint8_t> data(mensaje.begin(), mensaje.end());
 
-    StorageManager prueba;
-    vector<uint8_t> data;
-    prueba.save_atomic("file", data);
+    cout << "prueba de persistencia atomica" << endl;
+
+    if (sm.save_atomic("base_datos.bin", data)) {
+        cout << "[LOG] Guardado exitoso." << endl;
+        cout << "[LOG] El archivo 'base_datos.bin' ha sido creado/actualizado." << endl;
+    } else {
+        cerr << "[ERROR] Fallo en la persistencia." << endl;
+        return 1;
+    }
+
+    int fd = open("base_datos.bin", O_RDONLY);
+    if (fd >= 0) {
+        char buffer[100];
+        ssize_t n = read(fd, buffer, sizeof(buffer) - 1);
+        if (n > 0) {
+            buffer[n] = '\0';
+            cout << "[VERIFICACION] Datos en disco: " << buffer << endl;
+        }
+        close(fd);
+    }
+
+    return 0;
 }
