@@ -1,72 +1,28 @@
-#include <iostream>
-#include <vector>
-#include <string>
-#include <fcntl.h>
-#include <unistd.h>
-#include <cstring>
+#include "storage_manager.hpp"
+#include "page.hpp"
 
-using namespace std;
+int main() {
+    StorageManager sm("motor_db.bin");
 
-class StorageManager {
-public:
-    bool save_atomic(const string& filename, const vector<uint8_t>& data ){
-        string temp_name = filename + ".tmp";
+    Page page1(1);
+    int slot_prueba1 = page1.insertar_registro("kerin|larico|22");
+    int slot_prueba2 = page1.insertar_registro("santiesteban|gomez|30");
+    int slot_prueba3 = page1.insertar_registro("maria|lopez|25");
 
-        int fd = open(temp_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (fd < 0) return handle_error("Error al abrir archivo temporal");
-        
-        ssize_t bytes_written = write(fd, data.data(), data.size());
-        if (bytes_written != static_cast<ssize_t>(data.size())){
-            close(fd);
-            return handle_error("Error al escribir");
-        }
-
-        if(fsync(fd) < 0) {
-            close(fd);
-            return handle_error("Error en fsync");
-        }
-
-        close(fd);
-
-        if(rename(temp_name.c_str(), filename.c_str()) < 0){
-            return handle_error("Error al renombrar");
-        }
-
-        return true;
-    }
-private:
-    bool handle_error(const string& msg){
-        cerr << msg << ": " << strerror(errno) << endl;
-        return false;
-    }
-};
-
-int main(){
-    StorageManager sm;
-    
-    string mensaje = "Registro base de datos";
-    vector<uint8_t> data(mensaje.begin(), mensaje.end());
-
-    cout << "prueba de persistencia atomica" << endl;
-
-    if (sm.save_atomic("base_datos.bin", data)) {
-        cout << "[LOG] Guardado exitoso." << endl;
-        cout << "[LOG] El archivo 'base_datos.bin' ha sido creado/actualizado." << endl;
+    if ( sm.writePage(page1.header.page_id, page1)) {
+        cout << "Página escrita exitosamente." << endl;
     } else {
-        cerr << "[ERROR] Fallo en la persistencia." << endl;
-        return 1;
+        cout << "Error al escribir la página." << endl;
     }
 
-    int fd = open("base_datos.bin", O_RDONLY);
-    if (fd >= 0) {
-        char buffer[100];
-        ssize_t n = read(fd, buffer, sizeof(buffer) - 1);
-        if (n > 0) {
-            buffer[n] = '\0';
-            cout << "[VERIFICACION] Datos en disco: " << buffer << endl;
-        }
-        close(fd);
-    }
+     Page page_lectura;
 
+     if(sm.readPage(1, page_lectura)){
+        cout << " prueba 1 "<< slot_prueba1 <<" : " << page_lectura.get_registro(slot_prueba1) <<endl;
+        cout << " prueba 2 "<< slot_prueba2 <<" : " << page_lectura.get_registro(slot_prueba2) <<endl;
+        cout << " prueba 3 "<< slot_prueba3 <<" : " << page_lectura.get_registro(slot_prueba3) <<endl;
+    }
     return 0;
+
+>>>>>>> 943d1768066edf5ac3565f439f43fb0d0443c4e9
 }
