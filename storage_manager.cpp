@@ -25,7 +25,7 @@ void StorageManager::inicializar_archivos() {
         pagina_iteradora.header.page_id = i; 
         writePage(i, pagina_iteradora);
     }
-    cout<<" se construyeron las 100 paginas vacias ye l archivo de espacio libre";
+    cout<<" se construyeron las 100 paginas vacias y el archivo de espacio libre";
 }
 
 bool StorageManager::guardar_mapa(){
