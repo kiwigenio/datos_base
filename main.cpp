@@ -14,9 +14,7 @@ int main() {
     } else {
         cout << "Error al escribir la página." << endl;
     }
-
-     Page page_lectura;
-
+    Page page_lectura(1);
      if(sm.readPage(1, page_lectura)){
         cout << " prueba 1 "<< slot_prueba1 <<" : " << page_lectura.get_registro(slot_prueba1) <<endl;
         cout << " prueba 2 "<< slot_prueba2 <<" : " << page_lectura.get_registro(slot_prueba2) <<endl;

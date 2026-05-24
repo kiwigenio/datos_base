@@ -29,6 +29,7 @@ struct Page {
 
     // Constructor
     Page(int32_t id);
+    Page();
 
     // Declaración de métodos
     int insertar_registro(const std::string& registro);

@@ -1,5 +1,6 @@
 #include "page.hpp"
 
+Page::Page(){};
 
 Page::Page(int32_t id ){
     memset(this, 0, sizeof(Page)); 
