@@ -17,7 +17,7 @@ int Page::insertar_registro(const std::string& registro){
 
     for ( int i = 0 ; i< header.num_slots; i++) { 
         SlotEntry* ranura_temp = reinterpret_cast<SlotEntry*> (&data[i* sizeof(SlotEntry)]);
-        if ( ranura_temp-> offset == -1 && ranura_temp-> length >= len){
+        if ( ranura_temp-> offset == -1 ){
             slot_reciclado = i;
             break; 
         }
@@ -62,5 +62,21 @@ string Page::get_registro(int slot_id){
     SlotEntry* ranura = reinterpret_cast<SlotEntry*>(&data[slot_id * sizeof(SlotEntry)]);
     if(ranura-> offset == -1) return "registro borrado";
     return string(&data[ranura-> offset], ranura-> length);
+}
+
+bool Page::borrar_registro(int slot_id) {
+    if (slot_id < 0 || slot_id >= header.num_slots) {
+        return false; 
+    }
+    SlotEntry* ranura = reinterpret_cast<SlotEntry*>(&data[slot_id * sizeof(SlotEntry)]);
+    // verificamos si ya estaba borrado desde antes
+    if (ranura->offset == -1) {
+        return false; 
+    }
+    // le ponemos el sticker de "nulo"
+    ranura->offset = -1;
+    ranura->length = 0;
+
+    return true;
 }
 

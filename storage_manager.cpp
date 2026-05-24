@@ -21,7 +21,7 @@ void StorageManager::inicializar_archivos() {
     guardar_mapa();
 
     Page pagina_iteradora(0); 
-    for (int i = 1 ; i<100; i++ ) { 
+    for (int i = 0 ; i<100; i++ ) { 
         pagina_iteradora.header.page_id = i; 
         writePage(i, pagina_iteradora);
     }
@@ -71,6 +71,7 @@ void StorageManager::handle_error(const string& msg) {
 
 
 bool StorageManager::writePage(int page_id, const Page& page){ 
+    if (page_id < 0 || page_id >= 100) return false;
     int fd = open(fileName.c_str(), O_RDWR | O_CREAT, 0644);
     if (fd < 0) {
         handle_error("Error al abrir para escritura");
@@ -102,7 +103,7 @@ bool StorageManager::writePage(int page_id, const Page& page){
 
 
 bool StorageManager::readPage(int page_id,Page& page){
-
+    if (page_id < 0 || page_id >= 100) return false;
     int fd = open(fileName.c_str(), O_RDONLY);
     if (fd < 0) return false;
 
@@ -110,8 +111,6 @@ bool StorageManager::readPage(int page_id,Page& page){
         close(fd);
         return false;
     }
-
-    // SOLUCIÓN: Capturamos el retorno en 'bytes_read'
     ssize_t bytes_read = read(fd, &page, PAGE_SIZE);
     close(fd);
 
@@ -121,4 +120,22 @@ bool StorageManager::readPage(int page_id,Page& page){
     }
     return true;
 
+}
+
+int StorageManager::encontrar_pagina_con_espacio(uint16_t tamano_requerido){
+    uint16_t espacio_necesario = tamano_requerido + sizeof(SlotEntry);
+
+    for(int i = 0; i<100; i ++){
+        if(mapa_espacio[i] >= espacio_necesario){
+            return i; 
+
+        }
+    }
+    return -1;
+}
+
+void StorageManager::actualizar_espacio(int page_id, uint16_t nuevo_espacio_libre) {
+    if (page_id >= 0 && page_id < 100) {
+        mapa_espacio[page_id] = nuevo_espacio_libre; // Guardamos el nuevo valor en la RAM
+    }
 }
