@@ -30,9 +30,9 @@ Page* BufferPoolManager::FetchPage(int32_t page_id) {
     int frame_id = free_list.front();
     free_list.pop_front();
 
-    pool[frame_id].Reset();
+    pool[frame_id].Reset(page_id);
     if (!disk_manager->readPage(page_id, pool[frame_id].page)) {
-        pool[frame_id].page.header.page_id = page_id;
+        std::cout << "[BufferPool] Página " << page_id << " no existe en disco, se crea nueva." << std::endl;
     }
 
     page_table[page_id] = frame_id;

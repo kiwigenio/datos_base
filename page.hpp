@@ -15,7 +15,7 @@ struct SlotEntry{
 
 //metadatos de la pagina
 struct PageHeader{ 
-    int16_t page_id; 
+    int32_t page_id; 
     uint16_t num_slots;
     uint16_t espacio_libre_hacia_abajo; 
     uint16_t espacio_libre_hacia_arriba;

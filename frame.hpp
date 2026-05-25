@@ -8,11 +8,11 @@ struct Frame {
     int pin_count = 0;
     bool is_dirty = false;
 
-    void Reset() {
+    void Reset(int32_t new_page_id = 0) {
         pin_count = 0;
         is_dirty = false;
 
-        memset(&page, 0, sizeof(Page)); 
+        page = Page(new_page_id); 
     }
 };
 
