@@ -24,5 +24,4 @@ int main() {
     }
     return 0;
 
->>>>>>> 943d1768066edf5ac3565f439f43fb0d0443c4e9
 }
