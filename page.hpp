@@ -4,6 +4,7 @@
 #include <iostream>
 #include <iostream> 
 #include <cstdint>
+#include <cassert>
 
 const int PAGE_SIZE = 4096;
 #pragma pack(push, 1) // Asegura que no haya padding entre los campos de las estructuras
@@ -32,7 +33,7 @@ struct Page {
 
     // Constructor
     Page(int32_t id);
-    Page();
+    Page() =default ;
 
     // Declaración de métodos
     int insertar_registro(const std::string& registro);
