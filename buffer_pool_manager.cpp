@@ -1,7 +1,7 @@
 #include "buffer_pool_manager.hpp"
 
 BufferPoolManager::BufferPoolManager(size_t size, StorageManager* disk_manager) 
-    : pool_size(size), disk_manager(disk_manager), next_page_id_(0) {
+    : pool_size(size), disk_manager(disk_manager), next_page_id_(0) , replacer(size) {
     
     pool.resize(pool_size); 
     for (size_t i = 0; i < pool_size; ++i) {
@@ -19,14 +19,34 @@ Page* BufferPoolManager::FetchPage(int32_t page_id) {
     if (page_table.find(page_id) != page_table.end()) {
         int frame_id = page_table[page_id];
         pool[frame_id].pin_count++;
+        replacer.Pin(frame_id); 
         return &pool[frame_id].page;
+
     }
 
-    if (free_list.empty()) {
-        std::cerr << "[BufferPool] ERROR: RAM llena y no hay algoritmo de reemplazo." << std::endl;
-        return nullptr; 
-    }
+    int frame_id = -1;
 
+    if (!free_list.empty()) {
+        // Todavía hay frames sin usar
+        frame_id = free_list.front();
+        free_list.pop_front();
+    } else {
+        // Pool lleno: pedimos al LRU que evicte un frame
+        frame_id = replacer.Evict();
+        if (frame_id == -1) {
+            std::cerr << "[BufferPool] ERROR: todos los frames estan pinneados, no se puede evictar." << std::endl;
+            return nullptr;
+        }
+        for (auto const& [pid, fid] : page_table) {
+            if (fid == frame_id) {
+                if (pool[frame_id].is_dirty) {
+                    disk_manager->writePage(pid, pool[frame_id].page);
+                }
+                page_table.erase(pid);
+                break;
+            }
+        }
+    }
     int frame_id = free_list.front();
     free_list.pop_front();
 
@@ -38,6 +58,7 @@ Page* BufferPoolManager::FetchPage(int32_t page_id) {
     page_table[page_id] = frame_id;
     pool[frame_id].pin_count = 1;
     pool[frame_id].is_dirty = false;
+    replacer.Pin(frame_id);
 
     return &pool[frame_id].page;
 }
@@ -83,6 +104,10 @@ bool BufferPoolManager::UnpinPage(int32_t page_id, bool is_dirty) {
 
     if (is_dirty) {
         pool[frame_id].is_dirty = true;
+    }
+    
+    if (pool[frame_id].pin_count == 0) {
+        replacer.Unpin(frame_id);
     }
 
     return true;
