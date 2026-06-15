@@ -1,12 +1,77 @@
 #include "storage_manager.hpp"
 
-StorageManager::StorageManager(string name) : fileName(name) {}
+// constructor apra crear los archivos o simplemente cargar los valores si es que ya existen
+StorageManager::StorageManager(string name){
+    fileName = name; 
+    fileName_free_space_map = name  + "_espacio_libre.bin";
+    if ( access(fileName.c_str(), F_OK )== 0 && access(fileName_free_space_map.c_str(),F_OK) == 0) { 
+        cout<< "los archivos si existen"<<endl;
+        cargar_mapa();
+    }
+    else { 
+        cout<< "los archvios no existen (base de datos y mapa de espacio libre)"<<endl;
+        inicializar_archivos();
+    }
+}
+
+void StorageManager::inicializar_archivos() {
+    for( int i = 0 ; i < 100; i++ ){ 
+        mapa_espacio[i] = 4088;
+    }
+    guardar_mapa();
+
+    Page pagina_iteradora(0); 
+    for (int i = 0 ; i<100; i++ ) { 
+        pagina_iteradora.header.page_id = i; 
+        writePage(i, pagina_iteradora);
+    }
+    cout<<" se construyeron las 100 paginas vacias y el archivo de espacio libre";
+}
+
+bool StorageManager::guardar_mapa(){
+    int fd = open(fileName_free_space_map.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd< 0) { 
+        handle_error("Error al abrir el mapa de espacio para escritura");
+        return false;
+    }
+    ssize_t bytes_written = write( fd, mapa_espacio, sizeof(mapa_espacio));
+
+    if (bytes_written != sizeof(mapa_espacio )){ 
+        handle_error("Error al escribir el mapa de espacio");
+        close(fd);
+        return false;
+    }
+    fsync(fd);
+    close(fd);
+    return true;
+}
+
+bool StorageManager::cargar_mapa(){
+    int fd = open(fileName_free_space_map.c_str(), O_RDONLY);
+    if( fd < 0) {
+        handle_error("Error al abrir el mapa de espacio para lectura");
+        return false;
+    }
+    ssize_t bytes_read = read(fd, mapa_espacio, sizeof(mapa_espacio));
+
+    if(bytes_read != sizeof(mapa_espacio)){
+        handle_error("Error al leer el mapa de espacio");
+        close(fd);
+        return false;
+    }
+    close(fd);
+    return true;
+}
+
 
 void StorageManager::handle_error(const string& msg) {
     cerr << msg << ": " << strerror(errno) << endl;
 }
 
+
+
 bool StorageManager::writePage(int page_id, const Page& page){ 
+    if (page_id < 0 || page_id >= 100) return false;
     int fd = open(fileName.c_str(), O_RDWR | O_CREAT, 0644);
     if (fd < 0) {
         handle_error("Error al abrir para escritura");
@@ -38,7 +103,7 @@ bool StorageManager::writePage(int page_id, const Page& page){
 
 
 bool StorageManager::readPage(int page_id,Page& page){
-
+    if (page_id < 0 || page_id >= 100) return false;
     int fd = open(fileName.c_str(), O_RDONLY);
     if (fd < 0) return false;
 
@@ -46,8 +111,6 @@ bool StorageManager::readPage(int page_id,Page& page){
         close(fd);
         return false;
     }
-
-    // SOLUCIÓN: Capturamos el retorno en 'bytes_read'
     ssize_t bytes_read = read(fd, &page, PAGE_SIZE);
     close(fd);
 
@@ -57,4 +120,22 @@ bool StorageManager::readPage(int page_id,Page& page){
     }
     return true;
 
+}
+
+int StorageManager::encontrar_pagina_con_espacio(uint16_t tamano_requerido){
+    uint16_t espacio_necesario = tamano_requerido + sizeof(SlotEntry);
+
+    for(int i = 0; i<100; i ++){
+        if(mapa_espacio[i] >= espacio_necesario){
+            return i; 
+
+        }
+    }
+    return -1;
+}
+
+void StorageManager::actualizar_espacio(int page_id, uint16_t nuevo_espacio_libre) {
+    if (page_id >= 0 && page_id < 100) {
+        mapa_espacio[page_id] = nuevo_espacio_libre; // Guardamos el nuevo valor en la RAM
+    }
 }

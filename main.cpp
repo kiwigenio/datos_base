@@ -1,27 +1,62 @@
+#include <iostream>
 #include "storage_manager.hpp"
-#include "page.hpp"
+#include "buffer_pool_manager.hpp"
+#include "b_plus_tree.hpp"
+// Nota: BPlusTree.hpp ya debe incluir a los demás.
+
+using namespace std;
 
 int main() {
-    StorageManager sm("motor_db.bin");
+    cout << "=== TEST SEMANA 10: INSERCION Y BUSQUEDA ===" << endl;
 
-    Page page1(1);
-    int slot_prueba1 = page1.insertar_registro("kerin|larico|22");
-    int slot_prueba2 = page1.insertar_registro("santiesteban|gomez|30");
-    int slot_prueba3 = page1.insertar_registro("maria|lopez|25");
+    StorageManager* disk_manager = new StorageManager("test_db.bin");
+    disk_manager->inicializar_archivos(); 
+    BufferPoolManager* bpm = new BufferPoolManager(10, disk_manager);
 
-    if ( sm.writePage(page1.header.page_id, page1)) {
-        cout << "Página escrita exitosamente." << endl;
+    // 1. Creamos nuestro Arbol B+
+    BPlusTree<int> tree(bpm);
+
+    // 2. Probamos insertar datos
+    cout << "Insertando ID 10..." << endl; tree.Insert(10, RID(1, 1));
+    cout << "Insertando ID 5..." << endl;  tree.Insert(5, RID(2, 2));
+    cout << "Insertando ID 20..." << endl; tree.Insert(20, RID(3, 3));
+    
+    // ¡AQUÍ EXPLOTA Y HACE SPLIT!
+    cout << "Insertando ID 15 (Provoca Split)..." << endl; 
+    tree.Insert(15, RID(4, 4));
+
+    // Si el árbol sobrevivió y el enrutador funciona, debería encontrar el 20 bajando por la nueva raíz
+    RID result_2;
+    cout << "\nBuscando ID 20 despues del Split: ";
+    if (tree.GetValue(20, &result_2)) {
+        cout << "Encontrado en Pagina " << result_2.page_id << endl;
+    }
+
+    // 3. Probamos buscar los datos
+    RID result;
+    cout << "\nBuscando ID 5: ";
+    if (tree.GetValue(5, &result)) {
+        cout << "Encontrado en Pagina " << result.page_id << ", Slot " << result.slot_id << endl;
     } else {
-        cout << "Error al escribir la página." << endl;
+        cout << "No encontrado." << endl;
     }
 
-     Page page_lectura;
-
-     if(sm.readPage(1, page_lectura)){
-        cout << " prueba 1 "<< slot_prueba1 <<" : " << page_lectura.get_registro(slot_prueba1) <<endl;
-        cout << " prueba 2 "<< slot_prueba2 <<" : " << page_lectura.get_registro(slot_prueba2) <<endl;
-        cout << " prueba 3 "<< slot_prueba3 <<" : " << page_lectura.get_registro(slot_prueba3) <<endl;
+    cout << "Buscando ID 20: ";
+    if (tree.GetValue(20, &result)) {
+        cout << "Encontrado en Pagina " << result.page_id << ", Slot " << result.slot_id << endl;
+    } else {
+        cout << "No encontrado." << endl;
     }
+
+    cout << "Buscando ID 99 (No existe): ";
+    if (tree.GetValue(99, &result)) {
+        cout << "Encontrado!" << endl;
+    } else {
+        cout << "No encontrado. (Correcto)" << endl;
+    }
+
+    delete bpm;
+    delete disk_manager;
+
     return 0;
-
 }
