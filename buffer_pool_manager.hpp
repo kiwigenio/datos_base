@@ -7,6 +7,7 @@
 #include <iostream>
 #include "frame.hpp"
 #include "storage_manager.hpp"
+#include "lru_replacer.hpp"
 
 class BufferPoolManager {
 private:
@@ -17,6 +18,7 @@ private:
     StorageManager* disk_manager;
 
     int32_t next_page_id_;
+    LRUReplacer replacer;
 
 public:
     BufferPoolManager(size_t size, StorageManager* disk_manager);
