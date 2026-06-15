@@ -47,8 +47,6 @@ Page* BufferPoolManager::FetchPage(int32_t page_id) {
             }
         }
     }
-    int frame_id = free_list.front();
-    free_list.pop_front();
 
     pool[frame_id].Reset(page_id);
     if (!disk_manager->readPage(page_id, pool[frame_id].page)) {
@@ -105,7 +103,7 @@ bool BufferPoolManager::UnpinPage(int32_t page_id, bool is_dirty) {
     if (is_dirty) {
         pool[frame_id].is_dirty = true;
     }
-    
+
     if (pool[frame_id].pin_count == 0) {
         replacer.Unpin(frame_id);
     }
