@@ -7,6 +7,7 @@
 #include <iostream>
 #include "frame.hpp"
 #include "storage_manager.hpp"
+#include "lru_replacer.hpp"
 
 class BufferPoolManager {
 private:
@@ -15,6 +16,7 @@ private:
     std::unordered_map<int32_t, int> page_table;
     std::list<int> free_list;
     StorageManager* disk_manager;
+    LRUReplacer replacer;
 
 public:
     BufferPoolManager(size_t size, StorageManager* disk_manager);

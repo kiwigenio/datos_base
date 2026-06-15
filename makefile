@@ -3,7 +3,7 @@ CXXFLAGS = -std=c++17 -Wall -Wextra -O3
 
 TARGET = sgbd
 
-SRCS = main.cpp page.cpp storage_manager.cpp buffer_pool_manager.cpp
+SRCS = main.cpp page.cpp storage_manager.cpp buffer_pool_manager.cpp lru_replacer.cpp
 
 OBJS = $(SRCS:.cpp=.o)
 

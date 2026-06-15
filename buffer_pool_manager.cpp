@@ -1,7 +1,7 @@
 #include "buffer_pool_manager.hpp"
 
 BufferPoolManager::BufferPoolManager(size_t size, StorageManager* disk_manager) 
-    : pool_size(size), disk_manager(disk_manager) {
+    : pool_size(size), disk_manager(disk_manager), replacer(size) {
     
     pool.resize(pool_size); 
     for (size_t i = 0; i < pool_size; ++i) {
@@ -19,16 +19,35 @@ Page* BufferPoolManager::FetchPage(int32_t page_id) {
     if (page_table.find(page_id) != page_table.end()) {
         int frame_id = page_table[page_id];
         pool[frame_id].pin_count++;
+        replacer.Pin(frame_id);
         return &pool[frame_id].page;
     }
 
-    if (free_list.empty()) {
-        std::cerr << "[BufferPool] ERROR: RAM llena y no hay algoritmo de reemplazo." << std::endl;
-        return nullptr; 
-    }
+    int frame_id = -1;
 
-    int frame_id = free_list.front();
-    free_list.pop_front();
+    if (!free_list.empty()) {
+        // Todavía hay frames sin usar
+        frame_id = free_list.front();
+        free_list.pop_front();
+    } else {
+        // Pool lleno: pedimos al LRU que evicte un frame
+        frame_id = replacer.Evict();
+        if (frame_id == -1) {
+            std::cerr << "[BufferPool] ERROR: todos los frames estan pinneados, no se puede evictar." << std::endl;
+            return nullptr;
+        }
+
+        // Buscamos qué page_id ocupaba ese frame para limpiarlo de la page_table
+        for (auto const& [pid, fid] : page_table) {
+            if (fid == frame_id) {
+                if (pool[frame_id].is_dirty) {
+                    disk_manager->writePage(pid, pool[frame_id].page);
+                }
+                page_table.erase(pid);
+                break;
+            }
+        }
+    }
 
     pool[frame_id].Reset(page_id);
     if (!disk_manager->readPage(page_id, pool[frame_id].page)) {
@@ -38,14 +57,13 @@ Page* BufferPoolManager::FetchPage(int32_t page_id) {
     page_table[page_id] = frame_id;
     pool[frame_id].pin_count = 1;
     pool[frame_id].is_dirty = false;
+    replacer.Pin(frame_id);
 
     return &pool[frame_id].page;
 }
 
 bool BufferPoolManager::UnpinPage(int32_t page_id, bool is_dirty) {
-    if (page_table.find(page_id) == page_table.end()) {
-        return false; 
-    }
+    if (page_table.find(page_id) == page_table.end()) return false; 
 
     int frame_id = page_table[page_id];
     
@@ -57,13 +75,16 @@ bool BufferPoolManager::UnpinPage(int32_t page_id, bool is_dirty) {
         pool[frame_id].is_dirty = true;
     }
 
+    // Si nadie mas usa este frame, se vuelve candidato a evictar
+    if (pool[frame_id].pin_count == 0) {
+        replacer.Unpin(frame_id);
+    }
+
     return true;
 }
 
 bool BufferPoolManager::FlushPage(int32_t page_id) {
-    if (page_table.find(page_id) == page_table.end()) {
-        return false; 
-    }
+    if (page_table.find(page_id) == page_table.end()) return false; 
 
     int frame_id = page_table[page_id];
 
