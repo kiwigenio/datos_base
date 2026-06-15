@@ -1,73 +1,62 @@
+#include <iostream>
 #include "storage_manager.hpp"
-#include "page.hpp"
-#include <cassert>
+#include "buffer_pool_manager.hpp"
+#include "b_plus_tree.hpp"
+// Nota: BPlusTree.hpp ya debe incluir a los demás.
+
+using namespace std;
 
 int main() {
-    StorageManager sm("motor_db.bin");
-    cout<< "Prueba uno , creando el storage manager con todo por defecto "<<endl;
-    {
-        sm.inicializar_archivos();
+    cout << "=== TEST SEMANA 10: INSERCION Y BUSQUEDA ===" << endl;
 
-    }
-    cout<< "paso la prueba, se creo el archivo con 100 paginas vacias";
+    StorageManager* disk_manager = new StorageManager("test_db.bin");
+    disk_manager->inicializar_archivos(); 
+    BufferPoolManager* bpm = new BufferPoolManager(10, disk_manager);
 
-    cout<<" prueba numero 2 , insertando registors de longitud variable en cascada"<<endl;
-    int id_pagina_asignada = -1; 
-    int slot_juan = -1; 
-    int slot_maria = -1; 
-    {
-        id_pagina_asignada = sm.encontrar_pagina_con_espacio(7);
-        assert(id_pagina_asignada != -1); // Aseguramos que se encontró una página con espacio suficiente
+    // 1. Creamos nuestro Arbol B+
+    BPlusTree<int> tree(bpm);
 
-        Page pagina; 
-        bool read_success = sm.readPage(id_pagina_asignada, pagina);
-        assert(read_success==true);
-
-        slot_juan = pagina.insertar_registro("Juan|20");
-        assert(slot_juan == 0);
-        
-        slot_maria = pagina.insertar_registro("Maria|Gomez|Trabajadora_Social|45");
-        assert(slot_maria == 1);
-        
-        bool write_success = sm.writePage(id_pagina_asignada, pagina);
-        assert(write_success==true);
-        uint16_t espacio_libre = pagina.header.espacio_libre_hacia_arriba - pagina.header.espacio_libre_hacia_abajo;
-        sm.actualizar_espacio(id_pagina_asignada, espacio_libre);
-        sm.guardar_mapa();
-    }
-    cout<<"paso la prueba de insertar regsitros de longitud variable y guardarlo en el disco duro "<<endl;
-
-    cout<< "prueba numero 3 , verificar persistencia de los datos ";
-    {
-        Page pagina_recuperada; 
-        bool read_success = sm.readPage(id_pagina_asignada, pagina_recuperada); 
-        assert(read_success==true);
-        string registro_juan = pagina_recuperada.get_registro(slot_juan);
-        string registro_maria = pagina_recuperada.get_registro(slot_maria);
-        assert(registro_juan == "Juan|20");
-        assert(registro_maria == "Maria|Gomez|Trabajadora_Social|45");
-
-    }
-    cout << "paso la prueba de persistencia de datos, se recuperaron los datos anteriores";
+    // 2. Probamos insertar datos
+    cout << "Insertando ID 10..." << endl; tree.Insert(10, RID(1, 1));
+    cout << "Insertando ID 5..." << endl;  tree.Insert(5, RID(2, 2));
+    cout << "Insertando ID 20..." << endl; tree.Insert(20, RID(3, 3));
     
-    cout <<"prueba numero 4 , eliminar un registro y probar el reciclaje de ranuras"<<endl;
-    {
-        Page pagina; 
-        sm.readPage(id_pagina_asignada, pagina);
-        bool delete_success = pagina.borrar_registro(slot_juan);
-        assert(delete_success==true);
-        assert(pagina.get_registro(slot_juan)== "registro borrado");
+    // ¡AQUÍ EXPLOTA Y HACE SPLIT!
+    cout << "Insertando ID 15 (Provoca Split)..." << endl; 
+    tree.Insert(15, RID(4, 4));
 
-        int nuevo_slot = pagina.insertar_registro("Pedro|30");
-        assert(nuevo_slot == slot_juan); // Verificamos que se reutilizó la
-        assert(pagina.get_registro(nuevo_slot) == "Pedro|30"); // Verificamos que el nuevo registro se insertó correctamente
-
-        sm.writePage(id_pagina_asignada, pagina);
-        uint16_t espacio_libre = pagina.header.espacio_libre_hacia_arriba - pagina.header.espacio_libre_hacia_abajo;
-        sm.actualizar_espacio(id_pagina_asignada, espacio_libre);
-        sm.guardar_mapa();
+    // Si el árbol sobrevivió y el enrutador funciona, debería encontrar el 20 bajando por la nueva raíz
+    RID result_2;
+    cout << "\nBuscando ID 20 despues del Split: ";
+    if (tree.GetValue(20, &result_2)) {
+        cout << "Encontrado en Pagina " << result_2.page_id << endl;
     }
-    cout<<"paso la cuarta prueba";
-    return 0;
 
+    // 3. Probamos buscar los datos
+    RID result;
+    cout << "\nBuscando ID 5: ";
+    if (tree.GetValue(5, &result)) {
+        cout << "Encontrado en Pagina " << result.page_id << ", Slot " << result.slot_id << endl;
+    } else {
+        cout << "No encontrado." << endl;
+    }
+
+    cout << "Buscando ID 20: ";
+    if (tree.GetValue(20, &result)) {
+        cout << "Encontrado en Pagina " << result.page_id << ", Slot " << result.slot_id << endl;
+    } else {
+        cout << "No encontrado." << endl;
+    }
+
+    cout << "Buscando ID 99 (No existe): ";
+    if (tree.GetValue(99, &result)) {
+        cout << "Encontrado!" << endl;
+    } else {
+        cout << "No encontrado. (Correcto)" << endl;
+    }
+
+    delete bpm;
+    delete disk_manager;
+
+    return 0;
 }
