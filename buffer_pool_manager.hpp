@@ -16,12 +16,16 @@ private:
     std::list<int> free_list;
     StorageManager* disk_manager;
 
+    int32_t next_page_id_;
+
 public:
     BufferPoolManager(size_t size, StorageManager* disk_manager);
     ~BufferPoolManager();
 
     // API Principal
     Page* FetchPage(int32_t page_id);
+    Page* NewPage(int32_t* page_id);
+    bool DeletePage(int32_t page_id);
     bool UnpinPage(int32_t page_id, bool is_dirty);
     bool FlushPage(int32_t page_id);
 };
