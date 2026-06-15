@@ -1,6 +1,7 @@
 #include "storage_manager.hpp"
 #include "page.hpp"
 #include "buffer_pool_manager.hpp"
+#include <cassert>
 
 int main() {
     StorageManager sm("motor_db.bin");

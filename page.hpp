@@ -1,4 +1,5 @@
 #pragma once 
+#include <string>
 #include <cstring>
 #include <iostream>
 #include <iostream> 
@@ -25,7 +26,8 @@ struct PageHeader{
 // Estructura de la Página Física de 4KB
 struct Page {
     PageHeader header;
-    char data[PAGE_SIZE - sizeof(PageHeader)];
+    char data[PAGE_SIZE - sizeof(PageHeader)]; // arreglo donde se guardan los registros, el espacio se va moviendo
+                                                //hacia abajo a medida que se insertan registros nuevos
 
     // Constructor
     Page(int32_t id);
@@ -33,9 +35,8 @@ struct Page {
 
     // Declaración de métodos
     int insertar_registro(const std::string& registro);
-    std::string get_registro(int slot_id);
+    string get_registro(int slot_id);
     bool borrar_registro(int slot_id);
 };
 
 #pragma pack(pop)
-

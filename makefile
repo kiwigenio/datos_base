@@ -16,4 +16,4 @@ $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean: 
-	rm -f $(OBJS) $(TARGET) motor_db.bin
+	rm -f $(OBJS) $(TARGET) motor_db.bin motor_db.bin_espacio_libre.bin
