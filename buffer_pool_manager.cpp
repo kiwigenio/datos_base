@@ -145,3 +145,42 @@ bool BufferPoolManager::DeletePage(int32_t page_id){
     free_list.push_back(frame_id);
     return true;
 }
+
+void BufferPoolManager::MostrarEstado() {
+    std::cout << "\n=== ESTADO DEL BUFFER POOL (MEMORIA RAM) ===" << std::endl;
+    std::cout << "Capacidad: " << pool_size << " frames | Libres: " << free_list.size() << std::endl;
+    std::cout << "--------------------------------------------" << std::endl;
+    
+    for (size_t i = 0; i < pool_size; ++i) {
+        std::cout << "[Frame " << i << "] ";
+        
+        // Verificamos si este frame está en la lista de vacíos
+        bool esta_libre = false;
+        for (size_t libre : free_list) {
+            if (libre == i) { esta_libre = true; break; }
+        }
+        
+        if (esta_libre) {
+            std::cout << "--- VACIO ---" << std::endl;
+        } else {
+            // Mostramos los metadatos
+            std::cout << "Page_ID: " << pool[i].page.header.page_id 
+                      << " | Pin_Count: " << pool[i].pin_count 
+                      << " | Dirty: " << (pool[i].is_dirty ? "SI" : "NO") << std::endl;
+            
+            // Mostramos el contenido de la página
+            int slots = pool[i].page.header.num_slots;
+            if (slots > 0) {
+                for (int j = 0; j < slots; j++) {
+                    std::string texto = pool[i].page.get_registro(j);
+                    if (texto != "registro borrado" && texto != "Slot Id inválido") {
+                        std::cout << "            -> Slot " << j << ": '" << texto << "'" << std::endl;
+                    }
+                }
+            } else {
+                std::cout << "            -> (Pagina sin registros)" << std::endl;
+            }
+        }
+    }
+    std::cout << "============================================" << std::endl;
+}
