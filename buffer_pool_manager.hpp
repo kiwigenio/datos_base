@@ -30,6 +30,8 @@ public:
     bool DeletePage(int32_t page_id);
     bool UnpinPage(int32_t page_id, bool is_dirty);
     bool FlushPage(int32_t page_id);
+
+    void MostrarEstado();
 };
 
 #endif // BUFFER_POOL_MANAGER_HPP
