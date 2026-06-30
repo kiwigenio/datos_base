@@ -66,5 +66,17 @@ class BPlusTreeInternalPage : public BPlusTreePage{
             array_[target_index].second = new_page_id;
             
             IncreaseSize(1);
-        }        
+        }     
+        void Remove(int index) {
+        for (int i = index; i < GetSize() - 1; ++i) {
+            array_[i] = array_[i + 1];
+        }
+        IncreaseSize(-1);
+        }
+        int ValueIndex(const int &value) const {
+        for (int i = 0; i < GetSize(); ++i) {
+            if (array_[i].second == value) return i;
+        }
+        return -1;
+        }   
 };
