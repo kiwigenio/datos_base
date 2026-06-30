@@ -79,4 +79,56 @@ class BPlusTreeLeafPage : public BPlusTreePage {
             recipient->SetNextPageId(this->GetNextPageId());
             this->SetNextPageId(recipient->GetPageId());
         }
+        
+        void MoveAllTo(BPlusTreeLeafPage *recipient) {
+            int start_idx = recipient->GetSize();
+            for (int i = 0; i < GetSize(); ++i) {
+                recipient->array_[start_idx + i] = array_[i];
+            }
+            recipient->SetNextPageId(GetNextPageId()); // Actualizamos la lista enlazada
+            recipient->IncreaseSize(GetSize());
+            SetSize(0); // Esta página se queda vacía lista para morir
+        }
+
+        // Para el PRÉSTAMO (Izquierda a Derecha): Mueve el ÚLTIMO elemento al FRENTE del vecino
+        void MoveLastToFrontOf(BPlusTreeLeafPage *recipient) {
+            // Hacemos espacio en el vecino moviendo todo a la derecha
+            for (int i = recipient->GetSize(); i > 0; --i) {
+                recipient->array_[i] = recipient->array_[i - 1];
+            }
+            // Le pasamos nuestro último elemento
+            recipient->array_[0] = array_[GetSize() - 1];
+            recipient->IncreaseSize(1);
+            IncreaseSize(-1);
+        }
+
+        // Para el PRÉSTAMO (Derecha a Izquierda): Mueve el PRIMER elemento al FINAL del vecino
+        void MoveFirstToEndOf(BPlusTreeLeafPage *recipient) {
+            // Ponemos nuestro primer elemento al final del vecino
+            recipient->array_[recipient->GetSize()] = array_[0];
+            recipient->IncreaseSize(1);
+            
+            // Tapamos el hueco en nuestra hoja moviendo todo a la izquierda
+            for (int i = 0; i < GetSize() - 1; ++i) {
+                array_[i] = array_[i + 1];
+            }
+            IncreaseSize(-1);
+        }
+        int RemoveAndDeleteRecord(const KeyType &key) {
+            int target_index = -1;
+            for (int i = 0; i < GetSize(); ++i) {
+                if (array_[i].first == key) {
+                    target_index = i;
+                    break;
+                }
+            }
+            if (target_index == -1) return GetSize(); 
+
+            for (int i = target_index; i < GetSize() - 1; ++i) {
+                array_[i] = array_[i + 1];
+            }
+            IncreaseSize(-1);
+            return GetSize();
+        }
+
 };
