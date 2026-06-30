@@ -155,4 +155,200 @@ bool BPlusTree<KeyType>::Insert(const KeyType &key, const RID &value) {
     bpm_->UnpinPage(leaf_node->GetPageId(), true); // dirty = true
     return true;
 }
+
+template <typename KeyType>
+void BPlusTree<KeyType>::Remove(const KeyType &key) {
+    if (IsEmpty()) return;
+
+    // Buscamos la hoja donde debería estar la clave
+    Page* leaf_page = FindLeafPage(key);
+    if (leaf_page == nullptr) return;
+
+    auto* leaf_node = reinterpret_cast<BPlusTreeLeafPage<KeyType>*>(leaf_page->data);
+
+    int old_size = leaf_node->GetSize();
+    // Borramos el registro usando la función que creaste en la Fase 1
+    int new_size = leaf_node->RemoveAndDeleteRecord(key);
+
+    bool is_dirty = (old_size != new_size);
+
+    // ¡EL NÚCLEO DEL BONUS! Si borramos algo y el nodo cae en Underflow:
+    if (is_dirty && new_size < leaf_node->GetMinSize()) {
+        CoalesceOrRedistribute(leaf_node);
+    }
+
+    // Liberamos la página de la RAM
+    bpm_->UnpinPage(leaf_node->GetPageId(), is_dirty);
+}
+
+// AJUSTAR LA RAÍZ (Cuando el árbol pierde altura)
+template <typename KeyType>
+bool BPlusTree<KeyType>::AdjustRoot(BPlusTreePage *old_root_node) {
+    // Si la raíz era una hoja y se quedó vacía, el árbol muere.
+    if (old_root_node->IsLeafPage() && old_root_node->GetSize() == 0) {
+        root_page_id_ = -1;
+        bpm_->DeletePage(old_root_node->GetPageId());
+        return true;
+    }
+    
+    // Si la raíz interna se quedó con un solo hijo, ese hijo sube a ser la nueva raíz.
+    if (!old_root_node->IsLeafPage() && old_root_node->GetSize() == 1) {
+        auto *internal_root = reinterpret_cast<BPlusTreeInternalPage<KeyType> *>(old_root_node);
+        root_page_id_ = internal_root->ValueAt(0); 
+        
+        Page *new_root_page = bpm_->FetchPage(root_page_id_);
+        auto *new_root_node = reinterpret_cast<BPlusTreePage *>(new_root_page->data);
+        new_root_node->SetParentPageId(-1);
+        
+        bpm_->UnpinPage(root_page_id_, true);
+        bpm_->DeletePage(old_root_node->GetPageId());
+        return true;
+    }
+    return false;
+}
+
+// EL GERENTE DE EMERGENCIAS (Decide si prestar o fusionar)
+template <typename KeyType>
+template <typename N>
+bool BPlusTree<KeyType>::CoalesceOrRedistribute(N *node) {
+    if (node->IsRootPage()) {
+        return AdjustRoot(node);
+    }
+    if (node->GetSize() >= node->GetMinSize()) {
+        return false; 
+    }
+
+    // Buscamos al Padre para encontrar a los hermanos
+    Page *parent_page = bpm_->FetchPage(node->GetParentPageId());
+    auto *parent = reinterpret_cast<BPlusTreeInternalPage<KeyType> *>(parent_page->data);
+    
+    int my_index = parent->ValueIndex(node->GetPageId());
+    
+    // Elegimos al hermano izquierdo si es posible, si no, al derecho
+    int sibling_index = (my_index == 0) ? 1 : my_index - 1;
+    Page *sibling_page = bpm_->FetchPage(parent->ValueAt(sibling_index));
+    N *sibling = reinterpret_cast<N *>(sibling_page->data);
+
+    bool parent_dirty = false;
+
+    if (sibling->GetSize() > sibling->GetMinSize()) {
+        // Borrowing
+        Redistribute(sibling, node, my_index);
+        bpm_->UnpinPage(sibling->GetPageId(), true); 
+        parent_dirty = true;                         
+    } else {
+        // Merging)
+        parent_dirty = Coalesce(&sibling, &node, &parent, my_index);
+        bpm_->UnpinPage(sibling->GetPageId(), true);
+    }
+
+    bpm_->UnpinPage(parent->GetPageId(), parent_dirty);
+    return true; 
+}
+
+template <typename KeyType>
+template <typename N>
+void BPlusTree<KeyType>::Redistribute(N *neighbor_node, N *node, int index) {
+    // Para simplificar la complejidad de esta versión, implementamos el préstamo a nivel de hojas
+    if (node->IsLeafPage()) {
+        auto *leaf = reinterpret_cast<BPlusTreeLeafPage<KeyType> *>(node);
+        auto *neighbor = reinterpret_cast<BPlusTreeLeafPage<KeyType> *>(neighbor_node);
+        
+        // Traemos al padre para actualizar su semáforo
+        Page *parent_page = bpm_->FetchPage(leaf->GetParentPageId());
+        auto *parent = reinterpret_cast<BPlusTreeInternalPage<KeyType> *>(parent_page->data);
+
+        if (index == 0) {
+            // Nosotros somos el hijo [0], así que el vecino es el hermano DERECHO.
+            // Le robamos su PRIMER elemento y lo ponemos al FINAL nuestro.
+            neighbor->MoveFirstToEndOf(leaf);
+            // Actualizamos el semáforo del hermano derecho en el padre
+            parent->SetKeyAt(1, neighbor->KeyAt(0)); 
+        } else {
+            // Nosotros somos un hijo > 0, así que el vecino es el hermano IZQUIERDO.
+            // Le robamos su ÚLTIMO elemento y lo ponemos al FRENTE nuestro.
+            neighbor->MoveLastToFrontOf(leaf);
+            // Actualizamos nuestro propio semáforo en el padre
+            parent->SetKeyAt(index, leaf->KeyAt(0)); 
+        }
+        
+        bpm_->UnpinPage(parent->GetPageId(), true);
+    }
+}
+
+// Coalesce / Merging
+template <typename KeyType>
+template <typename N>
+bool BPlusTree<KeyType>::Coalesce(N **neighbor_node, N **node, BPlusTreeInternalPage<KeyType> **parent, int index) {
+    if ((*node)->IsLeafPage()) {
+        auto *leaf = reinterpret_cast<BPlusTreeLeafPage<KeyType> *>(*node);
+        auto *neighbor = reinterpret_cast<BPlusTreeLeafPage<KeyType> *>(*neighbor_node);
+
+        // Para fusionar siempre de Derecha a Izquierda, ordenamos los punteros
+        if (index == 0) {
+            // Si somos el hijo [0], el neighbor es el derecho. Intercambiamos los roles
+            // para que 'neighbor' sea siempre el que se queda vivo (el izquierdo).
+            std::swap(leaf, neighbor);
+            std::swap(node, neighbor_node);
+            index = 1; // Actualizamos el índice 
+        }
+
+        // Movemos TODOS los datos de la hoja derecha hacia la hoja izquierda
+        leaf->MoveAllTo(neighbor);
+        
+        bpm_->DeletePage(leaf->GetPageId()); 
+
+        (*parent)->Remove(index);
+        
+        return (*parent)->GetSize() < (*parent)->GetMinSize();
+    }
+    return false;
+}
+
+template <typename KeyType>
+void BPlusTree<KeyType>::PrintTree() {
+    if (IsEmpty()) {
+        std::cout << "  [El arbol B+ esta vacio]" << std::endl;
+        return;
+    }
+
+    std::queue<int> q;
+    q.push(root_page_id_);
+
+    while (!q.empty()) {
+        int size = q.size();
+        for (int i = 0; i < size; ++i) {
+            int curr_page_id = q.front();
+            q.pop();
+            
+            Page *page = bpm_->FetchPage(curr_page_id);
+            auto *node = reinterpret_cast<BPlusTreePage *>(page->data);
+            
+            if (node->IsLeafPage()) {
+                auto *leaf = reinterpret_cast<BPlusTreeLeafPage<KeyType> *>(node);
+                std::cout << "[HOJA " << curr_page_id << ": ";
+                for (int j = 0; j < leaf->GetSize(); j++) {
+                    std::cout << leaf->KeyAt(j) << " ";
+                }
+                std::cout << "]  ";
+            } else {
+                auto *internal = reinterpret_cast<BPlusTreeInternalPage<KeyType> *>(node);
+                std::cout << "[INTERNO " << curr_page_id << ": ";
+                // En nodos internos, la primera clave (índice 0) está vacía, empezamos en 1
+                for (int j = 1; j < internal->GetSize(); j++) {
+                    std::cout << internal->KeyAt(j) << " ";
+                }
+                std::cout << "]  ";
+                
+                // Encolamos a todos los hijos para el siguiente nivel
+                for (int j = 0; j < internal->GetSize(); j++) {
+                    q.push(internal->ValueAt(j));
+                }
+            }
+            bpm_->UnpinPage(curr_page_id, false);
+        }
+        std::cout << std::endl; // Salto de línea por cada nivel del árbol
+    }
+}
+
 template class BPlusTree<int>;
