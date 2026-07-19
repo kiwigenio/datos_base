@@ -101,9 +101,7 @@ Page* BufferPoolManager::NewPage(int32_t* page_id){
 }
 
 bool BufferPoolManager::UnpinPage(int32_t page_id, bool is_dirty) {
-    if (page_table.find(page_id) == page_table.end()) {
-        return false; 
-    }
+    if (page_table.find(page_id) == page_table.end()) return false; 
 
     int frame_id = page_table[page_id];
     
@@ -123,9 +121,7 @@ bool BufferPoolManager::UnpinPage(int32_t page_id, bool is_dirty) {
 }
 
 bool BufferPoolManager::FlushPage(int32_t page_id) {
-    if (page_table.find(page_id) == page_table.end()) {
-        return false; 
-    }
+    if (page_table.find(page_id) == page_table.end()) return false; 
 
     int frame_id = page_table[page_id];
 

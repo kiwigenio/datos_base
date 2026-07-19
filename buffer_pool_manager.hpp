@@ -16,9 +16,9 @@ private:
     std::unordered_map<int32_t, int> page_table;
     std::list<int> free_list;
     StorageManager* disk_manager;
+    LRUReplacer replacer;
 
     int32_t next_page_id_;
-    LRUReplacer replacer;
 
     uint64_t hits_ = 0;
     uint64_t misses_ = 0;

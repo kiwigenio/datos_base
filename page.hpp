@@ -17,11 +17,10 @@ struct SlotEntry{
 
 //metadatos de la pagina
 struct PageHeader{ 
-    int16_t page_id; // identificador de la pagina
-    uint16_t num_slots; // cantidad de ranuras ocupadas en la pagina, para saber donde insertar el siguiente registro
-    uint16_t espacio_libre_hacia_abajo; // para saber donde insertar el siguiente slot entry
-    uint16_t espacio_libre_hacia_arriba; // para saber donde insertar el siguiente registro, se va moviendo hacia abajo
-                                        // a medida que se insertan registros
+    int32_t page_id; 
+    uint16_t num_slots;
+    uint16_t espacio_libre_hacia_abajo; 
+    uint16_t espacio_libre_hacia_arriba;
 
 };
 
@@ -33,7 +32,7 @@ struct Page {
 
     // Constructor
     Page(int32_t id);
-    Page() =default ;
+    Page() = default;
 
     // Declaración de métodos
     int insertar_registro(const std::string& registro);
