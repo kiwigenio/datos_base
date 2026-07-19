@@ -2,7 +2,7 @@
 #include <iomanip>
 
 BufferPoolManager::BufferPoolManager(size_t size, StorageManager* disk_manager) 
-    : pool_size(size), disk_manager(disk_manager), next_page_id_(0) , replacer(size) {
+    : pool_size(size), disk_manager(disk_manager), next_page_id_(100) , replacer(size) {
     
     pool.resize(pool_size); 
     for (size_t i = 0; i < pool_size; ++i) {

@@ -71,7 +71,7 @@ void StorageManager::handle_error(const string& msg) {
 
 
 bool StorageManager::writePage(int page_id, const Page& page){ 
-    if (page_id < 0 || page_id >= 100) return false;
+    if (page_id < 0 ) return false;
     int fd = open(fileName.c_str(), O_RDWR | O_CREAT, 0644);
     if (fd < 0) {
         handle_error("Error al abrir para escritura");
@@ -103,7 +103,7 @@ bool StorageManager::writePage(int page_id, const Page& page){
 
 
 bool StorageManager::readPage(int page_id,Page& page){
-    if (page_id < 0 || page_id >= 100) return false;
+    if (page_id < 0 ) return false;
     int fd = open(fileName.c_str(), O_RDONLY);
     if (fd < 0) return false;
 

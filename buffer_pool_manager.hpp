@@ -38,6 +38,8 @@ public:
 
     void ReportHitRate() const;
     void ResetStats();
+    int32_t GetNextPageId() const { return next_page_id_; }
+    void SetNextPageId(int32_t next_id) { next_page_id_ = next_id; }
 };
 
 #endif // BUFFER_POOL_MANAGER_HPP
