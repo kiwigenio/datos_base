@@ -32,6 +32,9 @@ public:
     bool FlushPage(int32_t page_id);
 
     void MostrarEstado();
+
+    int32_t GetNextPageId() const { return next_page_id_; }
+    void SetNextPageId(int32_t next_id) { next_page_id_ = next_id; }
 };
 
 #endif // BUFFER_POOL_MANAGER_HPP
