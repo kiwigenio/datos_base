@@ -122,13 +122,11 @@ bool StorageManager::readPage(int page_id,Page& page){
 
 }
 
-int StorageManager::encontrar_pagina_con_espacio(uint16_t tamano_requerido){
+int StorageManager::encontrar_pagina_con_espacio(uint16_t tamano_requerido, int inicio, int fin){
     uint16_t espacio_necesario = tamano_requerido + sizeof(SlotEntry);
-
-    for(int i = 0; i<100; i ++){
+    for(int i = inicio; i < fin; i++){
         if(mapa_espacio[i] >= espacio_necesario){
-            return i; 
-
+            return i;
         }
     }
     return -1;

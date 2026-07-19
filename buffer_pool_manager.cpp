@@ -1,4 +1,5 @@
 #include "buffer_pool_manager.hpp"
+#include <iomanip>
 
 BufferPoolManager::BufferPoolManager(size_t size, StorageManager* disk_manager) 
     : pool_size(size), disk_manager(disk_manager), next_page_id_(0) , replacer(size) {
@@ -17,12 +18,14 @@ BufferPoolManager::~BufferPoolManager() {
 
 Page* BufferPoolManager::FetchPage(int32_t page_id) {
     if (page_table.find(page_id) != page_table.end()) {
+        hits_++;
         int frame_id = page_table[page_id];
         pool[frame_id].pin_count++;
         replacer.Pin(frame_id); 
         return &pool[frame_id].page;
 
     }
+    misses_++;
 
     int frame_id = -1;
 
@@ -62,30 +65,38 @@ Page* BufferPoolManager::FetchPage(int32_t page_id) {
 }
 
 Page* BufferPoolManager::NewPage(int32_t* page_id){
-    if (free_list.empty()) {
-        std::cerr << "[BufferPool] ERROR: RAM llena, no se puede crear página nueva." << std::endl;
-        return nullptr;
+    int frame_id = -1;
+
+    if (!free_list.empty()) {
+        frame_id = free_list.front();
+        free_list.pop_front();
+    } else {
+        // igual que FetchPage: pedimos al LRU que evicte
+        frame_id = replacer.Evict();
+        if (frame_id == -1) {
+            std::cerr << "[BufferPool] ERROR: todos los frames están pinneados." << std::endl;
+            return nullptr;
+        }
+        // limpiamos la page_table del frame evictado
+        for (auto const& [pid, fid] : page_table) {
+            if (fid == frame_id) {
+                if (pool[frame_id].is_dirty) {
+                    disk_manager->writePage(pid, pool[frame_id].page);
+                }
+                page_table.erase(pid);
+                break;
+            }
+        }
     }
 
-    // 2. Obtenemos un frame libre
-    int frame_id = free_list.front();
-    free_list.pop_front();
-
-    // 3. Asignamos un nuevo ID de página y avanzamos el contador
     *page_id = next_page_id_++;
-
-    // 4. Inicializamos el frame y la página en memoria
     pool[frame_id].Reset(*page_id);
-
-    // 5. Registramos en la tabla de páginas
     page_table[*page_id] = frame_id;
-    pool[frame_id].pin_count = 1;  // La fijamos (pin) porque quien la pidió la va a usar
-    
-    // Al ser nueva, la marcamos como dirty para obligar a que se guarde en disco eventualmente
-    pool[frame_id].is_dirty = true; 
+    pool[frame_id].pin_count = 1;
+    pool[frame_id].is_dirty = true;
+    replacer.Pin(frame_id);
 
     std::cout << "[BufferPool] Nueva página creada con ID: " << *page_id << std::endl;
-
     return &pool[frame_id].page;
 }
 
@@ -183,4 +194,25 @@ void BufferPoolManager::MostrarEstado() {
         }
     }
     std::cout << "============================================" << std::endl;
+}
+
+void BufferPoolManager::ReportHitRate() const {
+    uint64_t total = hits_ + misses_;
+    std::cout << "\n=== ESTADISTICAS DEL BUFFER POOL ===" << std::endl;
+    std::cout << "Hits   (RAM):  " << hits_ << std::endl;
+    std::cout << "Misses (Disco): " << misses_ << std::endl;
+    std::cout << "Total de accesos: " << total << std::endl;
+    if (total > 0) {
+        double hit_rate = (double)hits_ / total * 100.0;
+        std::cout << "Hit Rate: " << std::fixed << std::setprecision(2) << hit_rate << "%" << std::endl;
+    } else {
+        std::cout << "Hit Rate: N/A (sin accesos)" << std::endl;
+    }
+    std::cout << "=====================================" << std::endl;
+}
+
+void BufferPoolManager::ResetStats() {
+    hits_ = 0;
+    misses_ = 0;
+    std::cout << "[Stats] Contadores reiniciados." << std::endl;
 }

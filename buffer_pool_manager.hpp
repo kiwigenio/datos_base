@@ -20,6 +20,9 @@ private:
     int32_t next_page_id_;
     LRUReplacer replacer;
 
+    uint64_t hits_ = 0;
+    uint64_t misses_ = 0;
+
 public:
     BufferPoolManager(size_t size, StorageManager* disk_manager);
     ~BufferPoolManager();
@@ -32,6 +35,9 @@ public:
     bool FlushPage(int32_t page_id);
 
     void MostrarEstado();
+
+    void ReportHitRate() const;
+    void ResetStats();
 };
 
 #endif // BUFFER_POOL_MANAGER_HPP
