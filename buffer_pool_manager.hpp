@@ -18,10 +18,13 @@ private:
     StorageManager* disk_manager;
     LRUReplacer replacer;
 
+    Page* pages;
+
     int32_t next_page_id_;
 
     uint64_t hits_ = 0;
     uint64_t misses_ = 0;
+    uint64_t evictions_ = 0;
 
 public:
     BufferPoolManager(size_t size, StorageManager* disk_manager);
@@ -40,6 +43,14 @@ public:
     void ResetStats();
     int32_t GetNextPageId() const { return next_page_id_; }
     void SetNextPageId(int32_t next_id) { next_page_id_ = next_id; }
+    
+
+    int GetHits() const { return hits_; }
+    int GetMisses() const { return misses_; }
+    int GetEvictions() const { return evictions_; }
+
+    void FlushAllPages();
+    
 };
 
 #endif // BUFFER_POOL_MANAGER_HPP

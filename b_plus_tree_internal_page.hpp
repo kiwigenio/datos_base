@@ -14,13 +14,18 @@ class BPlusTreeInternalPage : public BPlusTreePage{
 
         MappingType array_[0];
     public:
-        void Init(int32_t page_id, int32_t parent_id =-1, int max_size = INTERNAL_PAGE_SIZE){ 
-            SetPageType(IndexPageType::INTERNAL_PAGE);
+        void Init(int32_t page_id, int32_t parent_id, int max_size) {
             SetPageId(page_id);
             SetParentPageId(parent_id);
-            SetSize(0);
             SetMaxSize(max_size);
+            SetSize(0);
 
+            // BARRIDO DE MEMORIA BASURA:
+            // Limpiamos todo el arreglo de punteros para que no queden IDs fantasma como 66145.
+            // Asumiendo que tu arreglo interno se llama array_
+            for (int i = 0; i <= max_size; ++i) {
+                array_[i].second = -1; // -1 representa INVALID_PAGE_ID
+            }
         }
 
         KeyType KeyAt(int index) const{ 

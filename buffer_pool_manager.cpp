@@ -36,6 +36,7 @@ Page* BufferPoolManager::FetchPage(int32_t page_id) {
     } else {
         // Pool lleno: pedimos al LRU que evicte un frame
         frame_id = replacer.Evict();
+        evictions_++;
         if (frame_id == -1) {
             std::cerr << "[BufferPool] ERROR: todos los frames estan pinneados, no se puede evictar." << std::endl;
             return nullptr;
@@ -73,6 +74,7 @@ Page* BufferPoolManager::NewPage(int32_t* page_id){
     } else {
         // igual que FetchPage: pedimos al LRU que evicte
         frame_id = replacer.Evict();
+        evictions_++;
         if (frame_id == -1) {
             std::cerr << "[BufferPool] ERROR: todos los frames están pinneados." << std::endl;
             return nullptr;
@@ -211,4 +213,14 @@ void BufferPoolManager::ResetStats() {
     hits_ = 0;
     misses_ = 0;
     std::cout << "[Stats] Contadores reiniciados." << std::endl;
+}
+
+void BufferPoolManager::FlushAllPages() {
+    // Recorremos todas las páginas que están actualmente en la tabla hash (RAM)
+    for (auto const& [page_id, frame_id] : page_table) {
+        // Tu propio método FlushPage ya se encarga de verificar si is_dirty es true
+        // y de llamar a disk_manager->writePage(page_id, page).
+        FlushPage(page_id);
+    }
+    std::cout << "[BufferPool] Sincronización ACID: Todas las páginas sucias han sido volcadas al disco." << std::endl;
 }
